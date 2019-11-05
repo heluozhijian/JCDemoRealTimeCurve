@@ -4,33 +4,44 @@
 #include <QMainWindow>
 #include <QWidget>
 #include <QLayout>
-#include <QtCharts>
+#include <QChart>
+#include <QChartView>
+#include <QLineSeries>
+#include <QTimer>
+// TODO: 不能包含这两个头文件，否则会报错
+//#include <QDateTimeAxis>
+//#include <QValueAxis>
+#include <QtCharts> // 代替QDateTimeAxis和QValueAxis
+using namespace QtCharts;
 
 class JCDemoRealTimeCurve : public QMainWindow
 {
     Q_OBJECT
-
 public:
-    JCDemoRealTimeCurve(QWidget *parent = nullptr);
-    ~JCDemoRealTimeCurve() Q_DECL_OVERRIDE;
+    explicit JCDemoRealTimeCurve(QWidget *parent = nullptr);
+    ~JCDemoRealTimeCurve();
 
 private:
     QWidget *centralWidget;
     QGridLayout *gridLayout;
-
-    void dataReceived(int value);
-    int timerId;
-    int maxSize;  // data 最多存储 maxSize 个元素
-    int maxX;
-    int maxY;
-    QList<double> data; // 存储业务数据的 list
-    QChart *chart;
     QChartView *chartView;
-    QSplineSeries *splineSeries;
-    QScatterSeries *scatterSeries;
+    QChart *chart;
+    QLineSeries *lineSeries;
+    QDateTimeAxis *axisX;
+    QValueAxis *axisY;
+    QTimer *timer;
 
-protected:
-    void timerEvent(QTimerEvent *event) Q_DECL_OVERRIDE;
+    const uint32_t MaxSize = 100;
+
+    void setupUi(void);
+    void initialize(void);
+
+signals:
+
+public slots:
+
+private slots:
+    void onTimer(void);
 };
 
 #endif // JCDEMOREALTIMECURVE_H

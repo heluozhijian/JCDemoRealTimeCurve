@@ -1,59 +1,16 @@
 ﻿#include "JCDemoRealTimeCurve.h"
 
-JCDemoRealTimeCurve::JCDemoRealTimeCurve(QWidget *parent)
-    : QMainWindow(parent)
+#include <QDebug>
+#include <QElapsedTimer>
+
+JCDemoRealTimeCurve::JCDemoRealTimeCurve(QWidget *parent) : QMainWindow(parent)
 {
-    maxSize = 31; // 只存储最新的 31 个数据
-    maxX = 300;
-    maxY = 100;
-    splineSeries = new QSplineSeries();
-    scatterSeries = new QScatterSeries();
-    scatterSeries->setMarkerSize(8);
+    setWindowTitle(QStringLiteral("RealTimeCurve"));
+    setAttribute(Qt::WA_DeleteOnClose);
+    setWindowState(Qt::WindowMaximized);
 
-    chart = new QChart();
-    chart->addSeries(splineSeries);
-    chart->addSeries(scatterSeries);
-    chart->legend()->hide();
-    chart->setTitle(QStringLiteral("实时动态曲线"));
-    chart->createDefaultAxes();
-
-    //chart->axisX()->setRange(0, 300);
-    //chart->axisY()->setRange(0, maxY);
-    chart->axes().at(0)->setRange(0, 300);
-    chart->axes().at(1)->setRange(0, maxY);
-
-    chartView = new QChartView(chart);
-
-    QValueAxis *axisx = new QValueAxis;
-    axisx->setGridLineVisible(false);
-    axisx->setTitleText("sample time(s)");
-    // chartView->chart()->setAxisX(axisx, splineSeries);
-    chartView->chart()->addAxis(axisx, Qt::AlignBottom);
-    splineSeries->attachAxis(axisx);
-
-    QValueAxis *axisy = new QValueAxis;
-    axisy->setGridLineVisible(false);
-    axisy->setTitleText("height(meter)");
-    // chartView->chart()->setAxisY(axisy,splineSeries);
-    chartView->chart()->addAxis(axisy, Qt::AlignLeft);
-    splineSeries->attachAxis(axisy);
-
-    chartView->setRenderHint(QPainter::Antialiasing);
-
-    timerId = startTimer(200);
-    qsrand(QDateTime::currentDateTime().toTime_t());
-
-    // gridLayout
-    gridLayout = new QGridLayout;
-    gridLayout->setSpacing(5);
-    gridLayout->setContentsMargins(0, 5, 0, 0); //left top right bottom
-    gridLayout->addWidget(chartView,         0, 0);
-    gridLayout->setRowStretch(0, 1);
-    gridLayout->setColumnStretch(0, 1);
-    // centralWidget
-    centralWidget = new QWidget;
-    centralWidget->setLayout(gridLayout);
-    this->setCentralWidget(centralWidget);
+    setupUi();
+    initialize();
 }
 
 JCDemoRealTimeCurve::~JCDemoRealTimeCurve()
@@ -61,33 +18,86 @@ JCDemoRealTimeCurve::~JCDemoRealTimeCurve()
 
 }
 
-void JCDemoRealTimeCurve::timerEvent(QTimerEvent *event)
+void JCDemoRealTimeCurve::setupUi(void)
 {
-    // 产生一个数据，模拟不停的接收到新数据
-    if (event->timerId() == timerId) {
-        int newData = qrand() % (maxY + 1);
-        dataReceived(newData);
-    }
+    // lineSeries
+    lineSeries = new QLineSeries;
+    lineSeries->clear();
+
+    // axisX
+    axisX = new QDateTimeAxis;
+    // axisX->setFormat("HH:mm:ss:zzz");
+    axisX->setFormat("HH:mm:ss");
+    axisX->setLabelsAngle(60);
+    axisX->setTickCount(11);
+
+    // axisY
+    axisY = new QValueAxis;
+    axisY->setRange(0, 360);
+    axisY->setTickCount(6);
+
+    // chart
+    chart = new QChart;
+    chart->setTitle("RealTimeCurve");
+    chart->setTheme(QChart::ChartThemeBrownSand);
+    chart->legend()->hide();
+
+    chart->addSeries(lineSeries);
+    chart->addAxis(axisX, Qt::AlignBottom);
+    chart->addAxis(axisY, Qt::AlignLeft);
+
+    lineSeries->attachAxis(axisX);
+    lineSeries->attachAxis(axisY);
+
+    // chartView
+    chartView = new QChartView(chart);
+
+    // gridLayout
+    gridLayout = new QGridLayout;
+    gridLayout->setSpacing(5);
+    gridLayout->setContentsMargins(0, 0, 0, 0); //left top right bottom
+    gridLayout->addWidget(chartView, 0, 0);
+    gridLayout->setRowStretch(0, 1);
+    gridLayout->setColumnStretch(0, 1);
+
+    // centralWidget
+    centralWidget = new QWidget;
+    centralWidget->setLayout(gridLayout);
+
+    // this
+    this->setCentralWidget(centralWidget);
 }
 
-void JCDemoRealTimeCurve::dataReceived(int value)
+void JCDemoRealTimeCurve::initialize(void)
 {
-    data << value;
-
-    // 数据个数超过了最大数量，则删除所有数据，从头开始。
-    while (data.size() > maxSize) {
-        data.clear();
-    }
-
-    // 界面被隐藏后就没有必要绘制数据的曲线了
-    if (isVisible()) {
-        splineSeries->clear();
-        scatterSeries->clear();
-        int dx = maxX / (maxSize-1);
-        for (int i = 0; i < data.size(); ++i) {
-            splineSeries->append(i*dx, data.at(i));
-            scatterSeries->append(i*dx, data.at(i));
-        }
-    }
+    timer = new QTimer();
+    timer->setInterval(100);
+    timer->setTimerType(Qt::PreciseTimer);
+    connect(timer, SIGNAL(timeout()), this, SLOT(onTimer()));
+    timer->start();
 }
 
+void JCDemoRealTimeCurve::onTimer(void)
+{
+    static bool flag = true;
+    static QDateTime beginTime, endTime;
+
+    if (flag == true) {
+        flag = false;
+        QElapsedTimer t;
+        t.start();
+        beginTime = QDateTime::currentDateTime();
+        endTime = beginTime.addMSecs(MaxSize * static_cast<uint32_t>(timer->interval()));
+        axisX->setMin(beginTime);
+        axisX->setMax(endTime); // TODO: waste about 30ms
+        // axisX->setRange(beginTime, endTime);
+        qDebug() << "QElapsedTimer" << t.elapsed();
+    }
+
+    if (lineSeries->count() < static_cast<int32_t>(MaxSize)) {
+        qint64 x1 = QDateTime::currentMSecsSinceEpoch();
+        lineSeries->append(x1, 100.0);
+    }
+
+    // lineSeries->show();
+}
