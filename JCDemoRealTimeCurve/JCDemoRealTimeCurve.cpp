@@ -75,29 +75,37 @@ void JCDemoRealTimeCurve::initialize(void)
     timer->setTimerType(Qt::PreciseTimer);
     connect(timer, SIGNAL(timeout()), this, SLOT(onTimer()));
     timer->start();
+
+    // test position 1
+    test(1);
 }
 
 void JCDemoRealTimeCurve::onTimer(void)
 {
     static bool flag = true;
-    static QDateTime beginTime, endTime;
+
+    timer->stop();
 
     if (flag == true) {
         flag = false;
-        QElapsedTimer t;
-        t.start();
-        beginTime = QDateTime::currentDateTime();
-        endTime = beginTime.addMSecs(MaxSize * static_cast<uint32_t>(timer->interval()));
-        axisX->setMin(beginTime);
-        axisX->setMax(endTime); // TODO: waste about 30ms
-        // axisX->setRange(beginTime, endTime);
-        qDebug() << "QElapsedTimer" << t.elapsed();
+        // test position 2
+        test(2);
     }
 
     if (lineSeries->count() < static_cast<int32_t>(MaxSize)) {
-        qint64 x1 = QDateTime::currentMSecsSinceEpoch();
-        lineSeries->append(x1, 100.0);
+        lineSeries->append(QDateTime::currentMSecsSinceEpoch(), 100.0);
     }
-
     // lineSeries->show();
+}
+
+void JCDemoRealTimeCurve::test(uint32_t num)
+{
+    QElapsedTimer t;
+    t.start();
+    beginTime = QDateTime::currentDateTime();
+    endTime = beginTime.addMSecs(MaxSize * static_cast<uint32_t>(timer->interval()));
+    axisX->setMin(beginTime);
+    axisX->setMax(endTime); // TODO: waste about 30ms
+    // axisX->setRange(beginTime, endTime);
+    qDebug() << "QElapsedTimer" << QString::number(num) << t.elapsed() << beginTime.msecsTo(QDateTime::currentDateTime());
 }

@@ -31,10 +31,12 @@ private:
     QValueAxis *axisY;
     QTimer *timer;
 
-    const uint32_t MaxSize = 100;
+    const uint32_t MaxSize = 10;
+    QDateTime beginTime, endTime;
 
     void setupUi(void);
     void initialize(void);
+    void test(uint32_t num);
 
 signals:
 
